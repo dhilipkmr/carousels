@@ -1,0 +1,6 @@
+.carouselWrapper{
+  position: relative;
+  overflow: hidden;
+  margin: auto;
+  box-sizing: border-box;
+}
