@@ -1,5 +1,4 @@
 import React, {useState, useEffect, useRef} from 'react';
-import useInterval from './useInterval';
 import './Carousel.css';
 const img_width = 300;
 const img_height = 300;
@@ -82,8 +81,9 @@ const Carousel = (props) => {
       } else {
         const val = currFirstImgIndex - imageList.order.indexOf(index);
         imgDifference.current = Math.abs(val);
-        setNextImage(index)
         setActualFirst(index);
+        setNextImage(index)
+        
       }
     } else {
       window.open(large_url);
@@ -111,7 +111,7 @@ const Carousel = (props) => {
           imgDifference.current = 1;
           clearInterval(intervalRef.current);
         }
-      }, durationRef.current - 200);
+      }, durationRef.current - 100);
     }
   }, [actualFirst]);
 
