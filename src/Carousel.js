@@ -7,43 +7,120 @@ const parentHeight = img_height + 2 * parentPad;
 const parentWidth = img_width * 3;
 const visibleImages = 5;
 
-
 const Carousel = (props) => {
   let {imgList} = props;
+  const [currFirstImg, setCurrFirstImg] = useState(0);
+  const [imageList, setImageList] = useState({ order: [], styles: {}});
+
+  const elementsInLeft = Math.ceil(visibleImages / 2);
+  const elementsInRight = visibleImages - elementsInLeft;
+
+  const getRight = () => {
+    const rightElements = {};
+    rightElements.order = [];
+    let curr_center = currFirstImg;
+    let timesToIterate = 1;
+    let zIndex = -1;
+    let xTranslate = img_width;
+    let zTranslate = 0;
+    let opacity = 1;
+    const division = xTranslate * (1.66 / elementsInRight);
+    let opacityDivider = (0.7 / elementsInRight);
+    while(timesToIterate < elementsInRight + 1) {
+      const styles = {};
+      let currImgIndex;
+      if (curr_center === 0) {
+        currImgIndex = imgList.length - 1 - timesToIterate + 1;
+      } else {
+        currImgIndex = (curr_center - timesToIterate > -1 ? curr_center - timesToIterate : imgList.length - Math.abs(curr_center - timesToIterate));
+      }
+      xTranslate = img_width - (division * timesToIterate);
+      zTranslate =  -(division) * timesToIterate;
+      opacity = 1 - (opacityDivider * timesToIterate);
+      styles.transform =  'translateX(' + xTranslate + 'px) translateZ(' +  zTranslate + 'px)';
+      styles.opacity = opacity;
+      styles.zIndex = zIndex--;
+      rightElements.order.push(currImgIndex);
+      rightElements[currImgIndex] = { styles };
+      timesToIterate++;
+    }
+    rightElements.order.reverse();
+    return rightElements;
+  }
+  const getLeft = () => {
+    let curr_center = currFirstImg;
+    const leftElements = {};
+    leftElements.order = [];
+    let zIndex = 0;
+    let xTranslate = img_width;
+    let zTranslate = 0;
+    let opacity = 1;
+    const division = xTranslate * (1.66 / elementsInLeft);
+    let opacityDivider = (0.7 / (elementsInLeft- 1 ));
+    let timesToIterate = 0; // iterate leftelement times to change all those image's styles
+    while(timesToIterate !== elementsInLeft) {
+      const styles = {};
+      let currImgIndex;
+      if (curr_center === 0) {
+        currImgIndex = curr_center + timesToIterate;
+      } else {
+        currImgIndex = curr_center + timesToIterate < imgList.length ? curr_center + timesToIterate :  curr_center + timesToIterate - imgList.length;
+      }
+      // const currImgIndex = currFirstImg + timesToIterate < imgList.length - 1 ? currFirstImg + timesToIterate : prevIndex++;
+      if (currImgIndex !== currFirstImg) {      // If the current element is on center
+        xTranslate = img_width + (division * timesToIterate);
+        zTranslate =  -(division) * timesToIterate;
+        opacity = 1 - (opacityDivider * timesToIterate);
+      }
+      styles.transform =  'translateX(' + xTranslate + 'px) translateZ(' +  zTranslate + 'px)';
+      styles.opacity = opacity;
+      styles.zIndex = zIndex--;
+      leftElements.order.push(currImgIndex);
+      leftElements[currImgIndex] = { styles };
+      timesToIterate++;
+    }
+    return leftElements;
+  }
+
+  const changeCenter = (event, index, large_url) => {
+    if (index !== currFirstImg) {
+      event.preventDefault();
+      setCurrFirstImg(index);
+    } else {
+      window.open(large_url);
+    }
+  }
+  const findIndeces = () => {
+    const left = getLeft();
+    const right = getRight();
+    let newImageList = {}
+    const order = right.order.concat(left.order);
+    console.log('left', left);
+    console.log('right', right);
+    newImageList = {...right, ...left, order};
+    setImageList(newImageList);
+  }
+
+  useEffect(() => {
+    findIndeces();
+  }, [currFirstImg]);
 
   const loadCarousel = () => {
-    // imgList= imgList.reverse();
-    imgList.splice(3);
+    console.log(imageList);
     return (
-      <div className="carouselWrapper" style={{ height: parentHeight + 'px', width:  parentWidth + 'px', padding: parentPad + 'px'}}>
-      { 
+      <ul className="carouselWrapper" style={{ height: parentHeight + 'px', width:  parentWidth + 'px', padding: parentPad + 'px', perspective: '500px'}}>
+      {
         imgList.map(({large_url, url, id}, index) => {
-          let styl = { position: 'absolute', top: 0, left: 0, display: 'block' };
-          if (index === 0 ) {
-            const val = parentWidth * 0.333;
-            styl.transform =  'translateX(' + val + 'px)';
-
-          }
-          if (index === 1 ) {
-            const val = parentWidth * 0.57;
-            styl.transform =  'translateX(' + val + 'px) translateZ(100px) scale(0.8)';
-            styl.opacity = 0.8;
-            styl.zIndex = -1;
-          }
-          if (index === 2 ) {
-            const val = parentWidth * 0.74;
-            styl.transform =  'translateX(' + val + 'px) translateZ(100px) scale(0.6)';
-            styl.opacity = 0.6;
-            styl.zIndex = -2;
-          }
+          const dn = imageList.order.indexOf(index) === -1;
+          const styles = imageList[index] ? imageList[index].styles: {};
           return (
-            <a href={large_url} target="_blank" key={id} style={{...styl}} onClick={() => { console.log(index)}}>
+            <li key={id} className={'imgWrap ' + (dn ? 'dn': '')} style={{...styles, position: 'absolute', transition: 'all 1s ease-in-out'}} onClick={(e) => { changeCenter(e, index, large_url)} }>
               <img src={url} alt={'img_' + id } width={img_width} height={img_height}/>
-            </a>
+            </li>
           )
         })
       }
-      </div>
+      </ul>
     );
   };
 

@@ -4,3 +4,15 @@
   margin: auto;
   box-sizing: border-box;
 }
+
+.imgWrap {
+  position: 'absolute';
+  top: 0;
+  left: 0;
+}
+li {
+  list-style-type: none;
+}
+.dn {
+  display: none;
+}
