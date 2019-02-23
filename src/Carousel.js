@@ -1,28 +1,32 @@
 import React, {useState, useEffect, useRef} from 'react';
 import './Carousel.css';
-const img_width = 300;
-const img_height = 300;
+
+/* Default Properties */
+const IMG_WIDTH = 300;
+const IMG_HEIGHT = 300;
 const parentPad = 0;
-const parentHeight = img_height + 2 * parentPad;
-const parentWidth = img_width * 3;
-const visibleImages = 5;
+const VISIBLEIMAGES = 3;
+const DURATION = 750;
 
 const Carousel = (props) => {
-  let {imgList} = props;
-  const [currFirstImg, setCurrFirstImg] = useState(0);
-  const [actualFirst, setActualFirst] = useState('');
-  const [imageList, setImageList] = useState({ order: [], styles: {}});
-  const currFirstImgRef = useRef(0);
-  const intervalRef = useRef(0);
-  const imgDifference = useRef(1);
-  const durationRef = useRef(1000);
-
-  const elementsInLeft = Math.ceil(visibleImages / 2);
+  const {imgList = [], img_width = IMG_WIDTH, img_height = IMG_HEIGHT, visibleImages = VISIBLEIMAGES, duration = DURATION} = props;
+  /* Hooks Declarations Start*/
+  const [currFirstImg, setCurrFirstImg] = useState(0);  // The Current Middle Element/Primary element of our carousel
+  const [actualFirst, setActualFirst] = useState('');   // The Clicked Image when it is not the Immediate Next or Immediate Previous Image
+  const [visibleItemsProps, setVisibleItemsProps] = useState({ order: [], styles: {}}); // Set Styles and ordering to Images currently visible
+  const currMiddleImgRef = useRef(0);  // Reference for the image that is in the middle
+  const intervalRef = useRef(0);  // Reference to interval so that it can be removed from within/ before initiating new interval
+  const imgDifference = useRef(1); // The difference between the middle image and the image that is clicked by user to view next
+  const durationRef = useRef(duration); // Animation Duration, it should be changed when the image cicked is not immediate next/prev
+  /* Hooks Declarations End*/
+  const parentHeight = img_height + 2 * parentPad;  // To avoid overlap with Carousel Component's siblings, since all images are absolutely positioned
+  const parentWidth = img_width * 3;  // To have thrice the width of an individual image
+  const elementsInLeft = Math.ceil(visibleImages / 2);  // Floor is done to also include middle image along with other images to its left.
   const elementsInRight = visibleImages - elementsInLeft;
 
-  const constructImageList = () => {
-    const imageList = {};
-    imageList.order = [];
+  const constructVisibleItemsProps = () => {
+    const visibleItemsProps = {};
+    visibleItemsProps.order = [];
     let curr_center = currFirstImg;
     let timesToIterate = 0;
     let zIndex = - elementsInRight;
@@ -60,53 +64,58 @@ const Carousel = (props) => {
       styles.transform =  'translateX(' + xTranslate + 'px) translateZ(' +  zTranslate + 'px)';
       styles.opacity = opacity;
       styles.zIndex = currImgIndexOnRight ? zIndex++ : zIndex --;
-      imageList.order.push(currImgIndex);
-      imageList[currImgIndex] = { styles };
+      visibleItemsProps.order.push(currImgIndex);
+      visibleItemsProps[currImgIndex] = { styles };
       timesToIterate++;
     }
-    durationRef.current = actualFirst === '' ? 1000 : ((1000/imgDifference.current));
-    console.log(imageList);
-    setImageList(imageList);
+    durationRef.current = actualFirst === '' ? duration : ((duration / imgDifference.current));
+    console.log(visibleItemsProps);
+    setVisibleItemsProps(visibleItemsProps);
   }
 
 
-  const changeCenter = (event, index, large_url) => {
-    const currFirstImgIndex = imageList.order.indexOf(currFirstImg);
-    const prevIndex = imageList.order[currFirstImgIndex - 1];
-    const nextIndex = imageList.order[currFirstImgIndex + 1];
+  const changeCenter = ({event, index, large_url}) => {
+    // Checking if the clicked item is immediately next/prev item.Because to induce a carousel effect we need to make the images move in sequence.
+    // But that is not possible, when the user clicks out of sequence(Eg: image 4 from image 1).So here, the order breaks and we cannot 
+    // apply our sequential handling logic to it. If we do the 4th image comes into view from the back but the "cycling effect"
+    // of scrolling through images 2 and 3 would have been missed.
+    const currFirstImgIndex = visibleItemsProps.order.indexOf(currFirstImg);
+    const prevIndex = visibleItemsProps.order[currFirstImgIndex - 1];
+    const nextIndex = visibleItemsProps.order[currFirstImgIndex + 1];
     if (index !== currFirstImg) {
-      event.preventDefault();
-      if (index === prevIndex || index === nextIndex) {
+      if (index === prevIndex || index === nextIndex) { // if immediate first/next image
         setCurrFirstImg(index);
       } else {
-        const val = currFirstImgIndex - imageList.order.indexOf(index);
-        imgDifference.current = Math.abs(val);
+        const val = currFirstImgIndex - visibleItemsProps.order.indexOf(index);
+        imgDifference.current = Math.abs(val);  // Gives the number of images we have to cycle through, so we can provide equal part of total duration to all images.
         setActualFirst(index);
-        setNextImage(index)
-        
+        cycleToNextImage(index);
       }
     } else {
-      window.open(large_url);
+      window.open(large_url); // Can have a callback in props and execute it on click.
     }
   }
 
-  const setNextImage = (comparer) => {
-    if (imageList.order.indexOf(currFirstImgRef.current) > imageList.order.indexOf(comparer)) {
-      currFirstImgRef.current = currFirstImgRef.current - 1 > -1 ? currFirstImgRef.current - 1 : imgList.length - 1;
-      setCurrFirstImg(currFirstImgRef.current);
-    } else {
-      currFirstImgRef.current = (currFirstImgRef.current + 1) < imgList.length ?  (currFirstImgRef.current + 1) : 0;
-      setCurrFirstImg(currFirstImgRef.current);
+  // To show the subsequent image based on if the user has clicked on the right side or on the left side of the middle image
+  const cycleToNextImage = (actual) => {
+    if (visibleItemsProps.order.indexOf(currMiddleImgRef.current) > visibleItemsProps.order.indexOf(actual)) {  // Right side image click
+      currMiddleImgRef.current = currMiddleImgRef.current - 1 > -1 ? currMiddleImgRef.current - 1 : imgList.length - 1; // Right side image click
+      setCurrFirstImg(currMiddleImgRef.current);
+    } else {  // Left side image click
+      currMiddleImgRef.current = (currMiddleImgRef.current + 1) < imgList.length ?  (currMiddleImgRef.current + 1) : 0; // Conditions to handle cycle
+      setCurrFirstImg(currMiddleImgRef.current);
     }
   }
 
+  // Hook fires on evey change to actualFirst value. actualFirst is set when there is out of order click, so we have to handle it through timeinterval
+  // so that we can allow all intermediate images to do some animation in the meantime, to avoid the cycling look jerky.
   useEffect(() => {
     clearInterval(intervalRef.current);
     if (actualFirst !== '') {
       intervalRef.current = setInterval(() => {
-        if (actualFirst !== '' && actualFirst !== currFirstImgRef.current) {
-          setNextImage(actualFirst);
-        } else if (actualFirst !== '' && actualFirst === currFirstImgRef.current){
+        if (actualFirst !== '' && actualFirst !== currMiddleImgRef.current) {
+          cycleToNextImage(actualFirst);
+        } else if (actualFirst !== '' && actualFirst === currMiddleImgRef.current){
           setActualFirst('');
           imgDifference.current = 1;
           clearInterval(intervalRef.current);
@@ -115,9 +124,10 @@ const Carousel = (props) => {
     }
   }, [actualFirst]);
 
+
   useEffect(() => {
-    constructImageList();
-    currFirstImgRef.current = currFirstImg;
+    constructVisibleItemsProps();
+    currMiddleImgRef.current = currFirstImg;
   }, [currFirstImg]);
 
   const loadCarousel = () => {
@@ -125,10 +135,10 @@ const Carousel = (props) => {
       <ul className="carouselWrapper" style={{ height: parentHeight + 'px', width:  parentWidth + 'px', padding: parentPad + 'px', perspective: '500px'}}>
       {
         imgList.map(({large_url, url, id}, index) => {
-          const dn = imageList.order.indexOf(index) === -1;
-          const styles = imageList[index] ? imageList[index].styles: {};
+          const dn = visibleItemsProps.order.indexOf(index) === -1;
+          const styles = visibleItemsProps[index] ? visibleItemsProps[index].styles: {};
           return (
-            <li key={id} className={'imgWrap ' + (dn ? 'dn': '')} style={{...styles, position: 'absolute', transition: `all ${durationRef.current}ms linear `}} onClick={(e) => { changeCenter(e, index, large_url)} }>
+            <li key={id} className={'imgWrap ' + (dn ? 'dn': '')} style={{...styles, position: 'absolute', transition: `all ${durationRef.current}ms linear `}} onClick={(e) => { changeCenter({e, index, large_url})} }>
               <img src={url} alt={'img_' + id } width={img_width} height={img_height}/>
             </li>
           )
@@ -138,11 +148,10 @@ const Carousel = (props) => {
     );
   };
 
-  return(
-    <div>
-      <div><span>Carousel</span></div>
+  return (
+    <React.Fragment>
       {loadCarousel()}
-    </div>
-  )
+    </React.Fragment>
+  );
 }
 export default Carousel;
