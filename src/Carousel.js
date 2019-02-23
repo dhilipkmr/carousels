@@ -1,4 +1,5 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
+import useInterval from './useInterval';
 import './Carousel.css';
 const img_width = 300;
 const img_height = 300;
@@ -10,103 +11,116 @@ const visibleImages = 5;
 const Carousel = (props) => {
   let {imgList} = props;
   const [currFirstImg, setCurrFirstImg] = useState(0);
+  const [actualFirst, setActualFirst] = useState('');
   const [imageList, setImageList] = useState({ order: [], styles: {}});
+  const currFirstImgRef = useRef(0);
+  const intervalRef = useRef(0);
+  const imgDifference = useRef(1);
+  const durationRef = useRef(1000);
 
   const elementsInLeft = Math.ceil(visibleImages / 2);
   const elementsInRight = visibleImages - elementsInLeft;
 
-  const getRight = () => {
-    const rightElements = {};
-    rightElements.order = [];
+  const constructImageList = () => {
+    const imageList = {};
+    imageList.order = [];
     let curr_center = currFirstImg;
-    let timesToIterate = 1;
-    let zIndex = -1;
+    let timesToIterate = 0;
+    let zIndex = - elementsInRight;
     let xTranslate = img_width;
     let zTranslate = 0;
     let opacity = 1;
-    const division = xTranslate * (1.66 / elementsInRight);
+    const division = xTranslate * (1.66 / visibleImages);
     let opacityDivider = (0.7 / elementsInRight);
-    while(timesToIterate < elementsInRight + 1) {
+    let rightEltCount = elementsInRight;
+    let leftEltCount = elementsInLeft;
+    let curr_center_copy = curr_center;
+    while(timesToIterate < visibleImages ) {
       const styles = {};
       let currImgIndex;
-      if (curr_center === 0) {
-        currImgIndex = imgList.length - 1 - timesToIterate + 1;
+      let currImgIndexOnRight = true;
+      if (timesToIterate < elementsInRight) {
+        const nextIndex = curr_center - (rightEltCount);
+        currImgIndex = nextIndex > -1 ? nextIndex : imgList.length - Math.abs(nextIndex);
+        opacity = 1 - (opacityDivider * rightEltCount);
+        zTranslate =  -(img_width * (1.66 / elementsInRight)) * rightEltCount;
+        xTranslate = img_width - ((img_width * (1.66 / elementsInRight)) * rightEltCount);
+        rightEltCount--;
       } else {
-        currImgIndex = (curr_center - timesToIterate > -1 ? curr_center - timesToIterate : imgList.length - Math.abs(curr_center - timesToIterate));
-      }
-      xTranslate = img_width - (division * timesToIterate);
-      zTranslate =  -(division) * timesToIterate;
-      opacity = 1 - (opacityDivider * timesToIterate);
-      styles.transform =  'translateX(' + xTranslate + 'px) translateZ(' +  zTranslate + 'px)';
-      styles.opacity = opacity;
-      styles.zIndex = zIndex--;
-      rightElements.order.push(currImgIndex);
-      rightElements[currImgIndex] = { styles };
-      timesToIterate++;
-    }
-    rightElements.order.reverse();
-    return rightElements;
-  }
-  const getLeft = () => {
-    let curr_center = currFirstImg;
-    const leftElements = {};
-    leftElements.order = [];
-    let zIndex = 0;
-    let xTranslate = img_width;
-    let zTranslate = 0;
-    let opacity = 1;
-    const division = xTranslate * (1.66 / elementsInLeft);
-    let opacityDivider = (0.7 / (elementsInLeft- 1 ));
-    let timesToIterate = 0; // iterate leftelement times to change all those image's styles
-    while(timesToIterate !== elementsInLeft) {
-      const styles = {};
-      let currImgIndex;
-      if (curr_center === 0) {
-        currImgIndex = curr_center + timesToIterate;
-      } else {
-        currImgIndex = curr_center + timesToIterate < imgList.length ? curr_center + timesToIterate :  curr_center + timesToIterate - imgList.length;
-      }
-      // const currImgIndex = currFirstImg + timesToIterate < imgList.length - 1 ? currFirstImg + timesToIterate : prevIndex++;
-      if (currImgIndex !== currFirstImg) {      // If the current element is on center
-        xTranslate = img_width + (division * timesToIterate);
-        zTranslate =  -(division) * timesToIterate;
-        opacity = 1 - (opacityDivider * timesToIterate);
+        currImgIndexOnRight = false;
+        currImgIndex = curr_center_copy;
+        if (curr_center_copy + 1 >= imgList.length) {
+          curr_center_copy = 0;
+        } else {
+          curr_center_copy++;
+        }
+        opacity = 1 - (opacityDivider * Math.abs(leftEltCount - (timesToIterate + 1)));
+        zTranslate =  - (img_width * (1.66 / elementsInLeft)) * Math.abs(leftEltCount - (timesToIterate + 1));
+        xTranslate = img_width + (img_width * (1.66 / elementsInLeft)) * Math.abs(leftEltCount - (timesToIterate + 1));
       }
       styles.transform =  'translateX(' + xTranslate + 'px) translateZ(' +  zTranslate + 'px)';
       styles.opacity = opacity;
-      styles.zIndex = zIndex--;
-      leftElements.order.push(currImgIndex);
-      leftElements[currImgIndex] = { styles };
+      styles.zIndex = currImgIndexOnRight ? zIndex++ : zIndex --;
+      imageList.order.push(currImgIndex);
+      imageList[currImgIndex] = { styles };
       timesToIterate++;
     }
-    return leftElements;
+    durationRef.current = actualFirst === '' ? 1000 : ((1000/imgDifference.current));
+    console.log(imageList);
+    setImageList(imageList);
   }
 
+
   const changeCenter = (event, index, large_url) => {
+    const currFirstImgIndex = imageList.order.indexOf(currFirstImg);
+    const prevIndex = imageList.order[currFirstImgIndex - 1];
+    const nextIndex = imageList.order[currFirstImgIndex + 1];
     if (index !== currFirstImg) {
       event.preventDefault();
-      setCurrFirstImg(index);
+      if (index === prevIndex || index === nextIndex) {
+        setCurrFirstImg(index);
+      } else {
+        const val = currFirstImgIndex - imageList.order.indexOf(index);
+        imgDifference.current = Math.abs(val);
+        setNextImage(index)
+        setActualFirst(index);
+      }
     } else {
       window.open(large_url);
     }
   }
-  const findIndeces = () => {
-    const left = getLeft();
-    const right = getRight();
-    let newImageList = {}
-    const order = right.order.concat(left.order);
-    console.log('left', left);
-    console.log('right', right);
-    newImageList = {...right, ...left, order};
-    setImageList(newImageList);
+
+  const setNextImage = (comparer) => {
+    if (imageList.order.indexOf(currFirstImgRef.current) > imageList.order.indexOf(comparer)) {
+      currFirstImgRef.current = currFirstImgRef.current - 1 > -1 ? currFirstImgRef.current - 1 : imgList.length - 1;
+      setCurrFirstImg(currFirstImgRef.current);
+    } else {
+      currFirstImgRef.current = (currFirstImgRef.current + 1) < imgList.length ?  (currFirstImgRef.current + 1) : 0;
+      setCurrFirstImg(currFirstImgRef.current);
+    }
   }
 
   useEffect(() => {
-    findIndeces();
+    clearInterval(intervalRef.current);
+    if (actualFirst !== '') {
+      intervalRef.current = setInterval(() => {
+        if (actualFirst !== '' && actualFirst !== currFirstImgRef.current) {
+          setNextImage(actualFirst);
+        } else if (actualFirst !== '' && actualFirst === currFirstImgRef.current){
+          setActualFirst('');
+          imgDifference.current = 1;
+          clearInterval(intervalRef.current);
+        }
+      }, durationRef.current - 200);
+    }
+  }, [actualFirst]);
+
+  useEffect(() => {
+    constructImageList();
+    currFirstImgRef.current = currFirstImg;
   }, [currFirstImg]);
 
   const loadCarousel = () => {
-    console.log(imageList);
     return (
       <ul className="carouselWrapper" style={{ height: parentHeight + 'px', width:  parentWidth + 'px', padding: parentPad + 'px', perspective: '500px'}}>
       {
@@ -114,7 +128,7 @@ const Carousel = (props) => {
           const dn = imageList.order.indexOf(index) === -1;
           const styles = imageList[index] ? imageList[index].styles: {};
           return (
-            <li key={id} className={'imgWrap ' + (dn ? 'dn': '')} style={{...styles, position: 'absolute', transition: 'all 1s ease-in-out'}} onClick={(e) => { changeCenter(e, index, large_url)} }>
+            <li key={id} className={'imgWrap ' + (dn ? 'dn': '')} style={{...styles, position: 'absolute', transition: `all ${durationRef.current}ms linear `}} onClick={(e) => { changeCenter(e, index, large_url)} }>
               <img src={url} alt={'img_' + id } width={img_width} height={img_height}/>
             </li>
           )
