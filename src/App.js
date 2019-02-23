@@ -22,7 +22,7 @@ const App = (props) => {
       {imgList.length === 0 && <div>Loading...</div>}
       {imgList.length > 0 &&
         <Carousel imgList={imgList} img_width={300} img_height={300}
-        visibleImages={5} duration={750}/>
+        visibleImages={3} duration={750}/>
       }
     </div>
   );

@@ -33,7 +33,7 @@ const Carousel = (props) => {
     let xTranslate = img_width;
     let zTranslate = 0;
     let opacity = 1;
-    const division = xTranslate * (1.66 / visibleImages);
+    const division = (img_width * (1.66 / elementsInLeft));
     let opacityDivider = (0.7 / elementsInRight);
     let rightEltCount = elementsInRight;
     let leftEltCount = elementsInLeft;
@@ -46,8 +46,8 @@ const Carousel = (props) => {
         const nextIndex = curr_center - (rightEltCount);
         currImgIndex = nextIndex > -1 ? nextIndex : imgList.length - Math.abs(nextIndex);
         opacity = 1 - (opacityDivider * rightEltCount);
-        zTranslate =  -(img_width * (1.66 / elementsInRight)) * rightEltCount;
-        xTranslate = img_width - ((img_width * (1.66 / elementsInRight)) * rightEltCount);
+        zTranslate =  -division * rightEltCount;
+        xTranslate = img_width - (division * rightEltCount);
         rightEltCount--;
       } else {
         currImgIndexOnRight = false;
@@ -58,8 +58,8 @@ const Carousel = (props) => {
           curr_center_copy++;
         }
         opacity = 1 - (opacityDivider * Math.abs(leftEltCount - (timesToIterate + 1)));
-        zTranslate =  - (img_width * (1.66 / elementsInLeft)) * Math.abs(leftEltCount - (timesToIterate + 1));
-        xTranslate = img_width + (img_width * (1.66 / elementsInLeft)) * Math.abs(leftEltCount - (timesToIterate + 1));
+        zTranslate =  - division * Math.abs(leftEltCount - (timesToIterate + 1));
+        xTranslate = img_width + division * Math.abs(leftEltCount - (timesToIterate + 1));
       }
       styles.transform =  'translateX(' + xTranslate + 'px) translateZ(' +  zTranslate + 'px)';
       styles.opacity = opacity;
@@ -113,21 +113,21 @@ const Carousel = (props) => {
     clearInterval(intervalRef.current);
     if (actualFirst !== '') {
       intervalRef.current = setInterval(() => {
-        if (actualFirst !== '' && actualFirst !== currMiddleImgRef.current) {
+        if (actualFirst !== '' && actualFirst !== currMiddleImgRef.current) { // If the currentimage in middle is not actually clicked image then gotoNext image
           cycleToNextImage(actualFirst);
         } else if (actualFirst !== '' && actualFirst === currMiddleImgRef.current){
           setActualFirst('');
           imgDifference.current = 1;
-          clearInterval(intervalRef.current);
+          clearInterval(intervalRef.current); // If actual clicked and middle image are same we are all set to clear intervals, as they are unnecessary now
         }
-      }, durationRef.current - 100);
+      }, durationRef.current - 100);  // Introduced an advance of 100ms to begin bringing nextimage to middle before the previous one settles down else it looks jerky
     }
   }, [actualFirst]);
 
 
   useEffect(() => {
-    constructVisibleItemsProps();
-    currMiddleImgRef.current = currFirstImg;
+    constructVisibleItemsProps(); // This constructs all css properties to the elements in visibility
+    currMiddleImgRef.current = currFirstImg;  // Need to set it here as well so while accessing inside interval it will have the latest value
   }, [currFirstImg]);
 
   const loadCarousel = () => {
@@ -135,7 +135,7 @@ const Carousel = (props) => {
       <ul className="carouselWrapper" style={{ height: parentHeight + 'px', width:  parentWidth + 'px', padding: parentPad + 'px', perspective: '500px'}}>
       {
         imgList.map(({large_url, url, id}, index) => {
-          const dn = visibleItemsProps.order.indexOf(index) === -1;
+          const dn = visibleItemsProps.order.indexOf(index) === -1; // To not to show images that are out of visibility scope
           const styles = visibleItemsProps[index] ? visibleItemsProps[index].styles: {};
           return (
             <li key={id} className={'imgWrap ' + (dn ? 'dn': '')} style={{...styles, position: 'absolute', transition: `all ${durationRef.current}ms linear `}} onClick={(e) => { changeCenter({e, index, large_url})} }>
